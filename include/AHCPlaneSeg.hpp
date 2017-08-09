@@ -35,6 +35,8 @@
 #include "AHCParamSet.hpp"		//depthDisContinuous
 #include "DisjointSet.hpp"	//PlaneSeg::mergeNbsFrom
 
+#include <opencv2/opencv.hpp>
+
 namespace ahc {
 
 //return true if d0 and d1 is discontinuous
@@ -314,6 +316,57 @@ struct PlaneSeg {
 #endif
 		//nbs information to be maintained later if this node is accepted
 	}
+
+	//zc: 此ctor仅为了计算平面参数方程的构造函数, 不关心类内部其他参数
+	template<class Image3D>
+	PlaneSeg(const Image3D &points, const std::vector<int> &memberIdxs){
+		int imWidth = points.width(),
+			imHeight = points.height();
+
+		for(size_t i=0; i<memberIdxs.size(); i++){
+			int idx = memberIdxs[i];
+			int row = idx / imWidth,
+				col = idx - (row * imWidth); //其实== (idx % imWidth)
+			double x=0,y=0,z=10000;
+			points.get(row, col, x, y, z);
+
+			this->stats.push(x,y,z);
+		}//for
+
+		this->N=this->stats.N;
+		//assert(this->N >= 4);
+		if(this->N<4) {
+			this->mse=this->curvature=std::numeric_limits<double>::quiet_NaN();
+		} else {
+			this->stats.compute(this->center, this->normal, this->mse, this->curvature);
+		}	
+	}//PlaneSeg-ctor
+
+	//@brief //zc: 传入一个 cv8uc1的黑白msk, 求解平面参数方程
+	//@param[in] validMsk, cv8uc1 有效像素为255(或!=0更稳)
+	template<class Image3D>
+	PlaneSeg(const Image3D &points, const cv::Mat validMsk){
+		int imWidth = points.width(),
+			imHeight = points.height();
+
+		vector<cv::Point> validPxs; //valid(white) pixels
+		cv::findNonZero(validMsk, validPxs);
+		for(size_t i=0; i<validPxs.size(); i++){
+			cv::Point pti = validPxs[i]; //猜测
+			double x=0,y=0,z=10000;
+			points.get(pti.y, pti.x, x, y, z);
+
+			this->stats.push(x,y,z);
+		}//for
+
+		this->N=this->stats.N;
+		//assert(this->N >= 4);
+		if(this->N<4) {
+			this->mse=this->curvature=std::numeric_limits<double>::quiet_NaN();
+		} else {
+			this->stats.compute(this->center, this->normal, this->mse, this->curvature);
+		}	
+	}//PlaneSeg-ctor
 
 	/**
 	*  \brief similarity of two plane normals

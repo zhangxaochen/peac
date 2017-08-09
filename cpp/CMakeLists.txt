@@ -4,6 +4,8 @@ project(ahc)
 
 find_package(OpenCV REQUIRED)
 find_package(PCL 1.2 REQUIRED)
+message(STATUS "pcl>>> PCL_VERSION=${PCL_VERSION}; PCL_ROOT=${PCL_ROOT}; PCL_INCLUDE_DIRS=${PCL_INCLUDE_DIRS}; PCL_LIBRARIES=${PCL_LIBRARIES};")
+
 
 include_directories("../include")
 include_directories(${PCL_INCLUDE_DIRS})

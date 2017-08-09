@@ -1,3 +1,12 @@
+This repo is my fork of the Chen Feng's **[AHC]** algorithm, please follow the instructions below to cite his work if you make use of this code.
+
+We use this code for plane segmentation in our work **[CuFusion]**, if you're trying to run it, please clone this repo or download the source code here and add it to **[CuFusion]** for compilation.
+
+---------------
+
+[AHC]: http://www.merl.com/research/?research=license-request&sw=PEAC
+[CuFusion]: https://github.com/zhangxaochen/CuFusion
+
 Fast Plane Extraction Using Agglomerative Hierarchical Clustering (AHC)
 =======================================================================
 

@@ -316,8 +316,9 @@ namespace ahc {
 			}
 			this->ahCluster(minQ, false);
 
+			//zc: refine到此结束, 下面都是输出处理
 			//find plane idx maping from oldExtractedPlanes to final extractedPlanes
-			std::vector<int> plidmap(oldExtractedPlanes.size(),-1);
+			std::vector<int> plidmap(oldExtractedPlanes.size(),-1); //zc: erode&merge最终导致plidmap可能形如: [-1,0,1,2,1], 既有无效的,又有合并重复的.
 			int nFinalPlanes=0;
 			for(int i=0; i<(int)oldExtractedPlanes.size(); ++i) {
 				const PlaneSeg& op=*oldExtractedPlanes[i];
@@ -371,6 +372,22 @@ namespace ahc {
 				pSeg->at<cv::Vec3b>(border[k])=whiteColor;
 			}
 			//TODO: refine the plane equation as well after!!
+			
+			//zc: 
+#if 0		//V1: 拷贝自 findBlockMembership; 
+			//但是看到 "this->extractedPlanes[plid]->stats.pop" 确实被注掉了, 可能确实 erode & merge 都没有对 stats 正确操作
+			//update plane equation
+			for(int i=0; i<(int)this->extractedPlanes.size(); ++i) {
+				//if(isValidExtractedPlane[i]) { //refine 之后不应有此判断
+				if(this->extractedPlanes[i]->stats.N>=this->minSupport)
+					this->extractedPlanes[i]->update();
+				//} else {
+				//	this->extractedPlanes[i]->nouse=true;
+				//}
+			}
+#elif 1		//V2: 用我自己的 PlaneSeg-ctor
+			//空. 放给调用者, 因为此处可能 pMembership==0
+#endif
 		}
 
 		/**
