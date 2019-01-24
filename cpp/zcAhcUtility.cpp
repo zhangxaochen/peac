@@ -679,7 +679,7 @@ cv::Point2f getPx2fFrom3d(const Vector3d &pt3d, float fx, float fy, float cx, fl
 	return res;
 }//getPx2fFrom3d
 
-cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float cy){
+cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float cy, int step /*= 1*/){
 	using namespace cv;
 
 	Mat res = Mat::zeros(WIN_HH, WIN_WW, CV_16UC1); //初始全黑
@@ -703,8 +703,8 @@ cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float c
 	//imshow("zcRenderCubeDmap-cuMask", cuMask); //形如: http://imgur.com/bXTx1VG
 
 	const double INVALID_DEPTH = 1e11; //用极大值做无效值
-	for(int v=0; v<res.rows; v++){
-		for(int u=0; u<res.cols; u++){
+	for(int v=0; v<res.rows; v+=step){
+		for(int u=0; u<res.cols; u+=step){
 			if(0 == cuMask.at<uchar>(v, u)) //无效区域跳过, 试图提高效率
 				continue;
 
@@ -963,5 +963,85 @@ void Cube::drawContour(cv::Mat dstCanvas, double fx, double fy, double cx, doubl
 
 }//drawContour
 
+bool Cube::isTrihedronVisible(const Affine3d &camPose, float fx, float fy, float cx, float cy, bool dbgPrint /*= false*/){
+	using namespace cv;
+
+	//camPose.inverse() * this->cuVerts8_
+	Affine3d camPose_inv = camPose.inverse();
+	//1, 找到最近的点P 的 idx, 可能三邻面可见
+	double minDep = 1e7; //初始化极大值
+	int nearestVtxIdx = -1;
+	vector<Vector3d> cuVerts8_c;
+	for(size_t i=0; i < this->cuVerts8_.size(); i++){
+		Vector3d v_cam_i = camPose_inv * this->cuVerts8_[i];
+		if(v_cam_i.z() < minDep){
+			minDep = v_cam_i.z();
+			nearestVtxIdx = i;
+		}
+		cuVerts8_c.push_back(v_cam_i);
+	}
+	
+	//2, 根据邻边信息, 找到点P的邻点,
+	vector<int> adjVtxIdx; //nearest 点P 的邻点, 共三个, [0] 放置 P本身, size()=1+3=4;
+	adjVtxIdx.push_back(nearestVtxIdx);
+	for(size_t i=0; i < this->edgeIds_.size(); i++){
+		vector<int> edge_i = this->edgeIds_[i];
+		//检查 vec 是否含 nearestVtxIdx, 暂不用 std::find 
+		int otherIdx = -1;
+		bool edgeContainsP = false;
+		if(edge_i[0] == nearestVtxIdx)
+			otherIdx = edge_i[1];
+		if(edge_i[1] == nearestVtxIdx)
+			otherIdx = edge_i[0];
+
+		if(otherIdx != -1)
+			adjVtxIdx.push_back(otherIdx);
+
+		if(adjVtxIdx.size() == 4)
+			break; //找到三个就不找了(循环外已经add了一个), 倘若实现没错
+	}
+	
+	//3, 四点投影到成像平面, 判断: 
+	//	a, 是否全是钝角, 如果有锐角, 则三邻面不可见, 返回 false
+	//	b, 钝角也不能太大, 尝试暂定阈值 THRESH=140~160°, 如果太大, 实际深度图中会有一侧面全反射, 不可见
+	//综合, 即: 所有角必须 90°< theta < THRESH, 否则返回 false
+	vector<Point2f> pts; //像素点, 应有4个; 暂定 float, 而非 int
+	//先投影:
+	for(size_t i=0; i < adjVtxIdx.size(); i++){
+		int ptIdx = adjVtxIdx[i]; //cu (this) 里的顶点编号;
+		Vector3d &vtx_i = cuVerts8_c[ptIdx];
+		//double z_i = cuVerts8_c[ptIdx].z();
+		Point2f px_i;
+		px_i.x = vtx_i.x() * fx / vtx_i.z() + cx;
+		px_i.y = vtx_i.y() * fy / vtx_i.z() + cy;
+
+		pts.push_back(px_i);
+	}
+
+	//再判断: 90°< theta < THRESH; 三次, 写死
+	Point2f px0 = pts[0];
+	for(size_t i=1; i <= 3; i++){
+		Point2f px_a = pts[i],
+				px_b = pts[i==3 ? 1 : i+1];
+
+		Point2f ray_a = px_a - px0,
+				ray_b = px_b - px0;
+
+		float dotAB = ray_a.dot(ray_b);
+		if(dotAB > 0) //锐角
+			return false;
+
+		float cosAngle = dotAB / (cv::norm(ray_a) * cv::norm(ray_b));
+		//if(dbgPrint)
+		//	printf("cos[%d]:= %f\n", i, cosAngle);
+
+		const float cosThresh = //-0.93969262; //160°
+								-0.766044; //140°
+		if(cosAngle < cosThresh) //夹角太大, 也不让
+			return false;
+	}
+
+	return true; //走到最后说明三邻面可见
+}//isTrihedronVisible
 
 

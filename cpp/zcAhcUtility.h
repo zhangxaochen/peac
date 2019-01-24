@@ -147,7 +147,7 @@ bool getCu4Pts(const vector<double> &crnrTR, const vector<float> &cuSideVec,cons
 //@param[in] Cube, 相机坐标系下, 立方体模型, 
 //@param[in] intr=(fx,fy,cx,cy), 相机内参
 //@return 返回 16uc1 的深度图
-cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float cy);
+cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float cy, int step = 1);
 
 //@brief zc: 判断直线与平面是否相交; 参考: https://en.wikipedia.org/wiki/Line%E2%80%93plane_intersection
 //@param[in] (L0, L), 直线点斜式
@@ -229,6 +229,11 @@ public:
     //@param[in], color, 待绘制线框轮廓颜色
 	//@param[in], hideLines, 绘制时是否消隐
 	void drawContour(cv::Mat dstCanvas, double fx, double fy, double cx, double cy, const cv::Scalar& color, bool hideLines = false);
+
+	//@brief 判断相机在某视角 camPose 下, 是否三邻面可见, 以便作为图优化的关键帧 @2017-11-12 19:52:40
+	//@param[in] camPose, 输入一个相机姿态 (cam->global / cam2g)
+	//@param[in] fx, fy, cx, cy
+	bool isTrihedronVisible(const Affine3d &camPose, float fx, float fy, float cx, float cy, bool dbgPrint = false);
 };
 
 
