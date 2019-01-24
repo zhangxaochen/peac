@@ -41,8 +41,8 @@ const float M2MM = 1e3;
 const float MM2M = 1e-3;
 
 //立方体配准, opengl 渲染相关    //2017-1-10 23:09:04
-const int WIN_WW = 640,
-		  WIN_HH = 480;
+const int WIN_WW_MAX = 640,
+		  WIN_HH_MAX = 480;
 
 class Cube;
 

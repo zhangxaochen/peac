@@ -682,7 +682,7 @@ cv::Point2f getPx2fFrom3d(const Vector3d &pt3d, float fx, float fy, float cx, fl
 cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float cy, int step /*= 1*/){
 	using namespace cv;
 
-	Mat res = Mat::zeros(WIN_HH, WIN_WW, CV_16UC1); //初始全黑
+	Mat res = Mat::zeros(WIN_HH_MAX / step, WIN_WW_MAX / step, CV_16UC1); //初始全黑
 
 #if 1   //V1: 试图提高效率, 先生成 cu mask, 再仅在 mask 内部计算 //2017-1-15 00:28:47
 	const vector<Vector3d> &cuVerts8_cam = cube.cuVerts8_;
@@ -698,13 +698,14 @@ cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float c
 	vector<Point> hull;
 	convexHull(pxs8, hull); //默认 clockwise=false, returnPoints=true
 	
-	Mat cuMask = Mat::zeros(res.size(), CV_8UC1);
+	//Mat cuMask = Mat::zeros(res.size(), CV_8UC1);
+	Mat cuMask = Mat::zeros(WIN_HH_MAX, WIN_WW_MAX, CV_8UC1); //因 res 可能
 	fillConvexPoly(cuMask, hull, 255);
 	//imshow("zcRenderCubeDmap-cuMask", cuMask); //形如: http://imgur.com/bXTx1VG
 
 	const double INVALID_DEPTH = 1e11; //用极大值做无效值
-	for(int v=0; v<res.rows; v+=step){
-		for(int u=0; u<res.cols; u+=step){
+	for(int v = 0; v < WIN_HH_MAX; v += step){
+		for(int u = 0; u < WIN_WW_MAX; u += step){
 			if(0 == cuMask.at<uchar>(v, u)) //无效区域跳过, 试图提高效率
 				continue;
 
@@ -722,7 +723,7 @@ cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float c
 				//目前填充 facet 是按对面填充: 01, 23, 45; 此假设非通用, 暂定
 				int which = cube.facetVec_[2*fi].center_.z() < cube.facetVec_[2*fi+1].center_.z() ? 2*fi : 2*fi+1;
 #elif 1	//6面全检查, 180~220ms
-			for(int fi=0; fi<6; fi++){
+			for(int fi = 0; fi < 6; fi++){
 				int which = fi;
 #endif
 				Vector3d ptInters(-1,-1,-1); //暂定 <0 为无效值, 因为理论上不应位于相机后面
@@ -737,10 +738,17 @@ cv::Mat zcRenderCubeDmap(const Cube &cube, float fx, float fy, float cx, float c
 				}
 			}//for-fi
 
-			if(depth != INVALID_DEPTH)
-				res.at<ushort>(v, u) = (ushort)(M2MM * depth + 0.5f); //round, 非 flooring
+			if(depth != INVALID_DEPTH){
+				int resv = v / step,
+					resu = u / step;
+				//res.at<ushort>(v, u) = (ushort)(M2MM * depth + 0.5f); //round, 非 flooring
+				res.at<ushort>(resv, resu) = (ushort)(M2MM * depth + 0.5f); //round, 非 flooring
+			}
 		}//for-u
 	}//for-v
+	//cv::imshow("res_step", res);
+	//cv::pyrUp(res, res); //wrong: will be blurred
+	cv::resize(res, res, res.size()*2, 0, 0, cv::INTER_NEAREST);
 #endif
 
 	return res;
@@ -886,7 +894,7 @@ void Cube::addEdgeId(vector<int> &edge){
 void Cube::drawContour(cv::Mat dstCanvas, double fx, double fy, double cx, double cy, const cv::Scalar& color, bool hideLines /*= false*/){
     using namespace cv;
 	if(dstCanvas.empty())
-		dstCanvas = Mat::zeros(WIN_HH, WIN_WW, CV_8UC3); //若无内容, 生成待绘制黑背景, 尺寸默认 (WIN_HH, WIN_WW)
+		dstCanvas = Mat::zeros(WIN_HH_MAX, WIN_WW_MAX, CV_8UC3); //若无内容, 生成待绘制黑背景, 尺寸默认 (WIN_HH, WIN_WW)
 	
 	//1, 找出要被消隐的顶点
 	const size_t vertCnt = this->cuVerts8_.size(); //应==8, 这里仍用 .size() 获取, 以防有错
