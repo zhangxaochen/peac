@@ -115,7 +115,7 @@ vector<double> zcAxLine2ray(const cv::Mat &dmap, const vector<double> &orig, con
 //@return ortho3tuples, 是pl-idx-tup3, 不是实际平面参数; 后期可能用不到了
 //@param[in] plvec
 //@param[in] lblMat 平面划分 label 图, 如 ahc.PlaneFitter.membershipImg 
-//@param[out] cubeCandiPoses, vec-vec, 初始必须是空, N*12(t3+R9), 【del】R9不是真的旋转矩阵, 甚至不正交【del】. 改成 R9是旋转矩阵(nearest orhto 解得), 按行存储(row-major)??? 【不确定】
+//@param[out] cubeCandiPoses, vec-vec, 初始必须是空, N*12(t3+R9), 【del】R9不是真的旋转矩阵, 甚至不正交【del】. 改成 R9是旋转矩阵(nearest orhto 解得), 按col-major存储
 //@param[out] prev 【放弃】
 //@param[in/out] dbgMat, e.g.: pf.run 输出的调试观察 Mat
 vector<vector<int>> zcFindOrtho3tup(const vector<PlaneSeg> &plvec, const cv::Mat &lblMat,
